@@ -53,6 +53,9 @@ def render_markdown(report: dict) -> str:
     ap(f"| Draft incident stubs (ALR-shaped) | {_fmt(exposure['incident_stub_count'])} |")
     ap(f"| Incident stubs per robot-hour | {_fmt(exposure['incidents_per_robot_hour'])} |")
     ap("")
+    if exposure.get("rate_credibility_caveat"):
+        ap(f"> {exposure['rate_credibility_caveat']}")
+        ap("")
 
     ap("## Per-robot ledger")
     ap("")

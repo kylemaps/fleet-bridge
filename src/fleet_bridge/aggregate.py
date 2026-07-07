@@ -124,8 +124,23 @@ def build_fleet_report(
     per_robot.sort(key=lambda row: row["robot_id"])
 
     robot_hours = total_time_s / 3600.0
+    # Rates over tiny exposure are not credible: a 2-minute demo yielding
+    # "80 incidents per robot-hour" is an artifact of the denominator, not a
+    # fleet property. State the rate but flag it below a floor so no one rates
+    # on it. One robot-hour is a deliberately conservative floor for a demo;
+    # a real credibility standard is set per program with the underwriter.
+    CREDIBILITY_FLOOR_ROBOT_HOURS = 1.0
     incidents_per_robot_hour = (
         round(len(incidents) / robot_hours, 4) if robot_hours > 0 else NOT_PRESENT
+    )
+    rate_is_credible = robot_hours >= CREDIBILITY_FLOOR_ROBOT_HOURS
+    rate_caveat = (
+        None if rate_is_credible
+        else (
+            f"NOT CREDIBLE: only {round(robot_hours, 4)} robot-hours of exposure "
+            f"(floor {CREDIBILITY_FLOOR_ROBOT_HOURS}). Rate shown for completeness; "
+            "do not price on it."
+        )
     )
 
     return {
@@ -167,6 +182,8 @@ def build_fleet_report(
             "hard_decel_event_count_total": total_hard_decel,
             "incident_stub_count": len(incidents),
             "incidents_per_robot_hour": incidents_per_robot_hour,
+            "rate_is_credible": rate_is_credible,
+            "rate_credibility_caveat": rate_caveat,
         },
         "per_robot": per_robot,
         "incidents": incidents,
