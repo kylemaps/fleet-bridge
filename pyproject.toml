@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fleet-bridge"
+version = "0.1.0"
+description = "N sealed robot logs -> one signed, underwriting-grade Fleet Exposure Report. The fleet layer above veriseal and rating-bridge."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Kyle Mapue" }]
+dependencies = [
+    "cryptography>=42.0.0",
+]
+
+[project.optional-dependencies]
+demo = [
+    "mcap>=1.1.1",
+    "mcap-ros1-support>=0.7.0",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+fleet-bridge = "fleet_bridge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kylemaps/fleet-bridge"
+Repository = "https://github.com/kylemaps/fleet-bridge"
+
+[tool.setuptools.packages.find]
+where = ["src"]
