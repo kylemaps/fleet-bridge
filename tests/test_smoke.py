@@ -82,6 +82,17 @@ def test_tamper_quarantines(fleet: Path, tmp_path: Path):
     assert report["exposure"]["hard_decel_event_count_total"] == 0
 
 
+def test_clock_warning_flags_implausible_time():
+    from fleet_bridge.aggregate import _clock_warning
+
+    assert _clock_warning("r", "not_present_in_source", "not_present_in_source") is None
+    assert _clock_warning("r", "2026-07-01T00:00:00Z", "2026-07-01T00:02:00Z") is None
+    # Monotonic/steady_clock recorder near epoch:
+    assert "predates 2015" in _clock_warning("r", "1970-01-01T00:00:05Z", "1970-01-01T00:02:00Z")
+    # Undisciplined future clock:
+    assert "future" in _clock_warning("r", "2999-01-01T00:00:00Z", "2999-01-01T00:02:00Z")
+
+
 def test_signed_report_verifies(fleet: Path, tmp_path: Path):
     from fleet_bridge.cli import main
 

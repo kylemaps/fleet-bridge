@@ -75,6 +75,18 @@ def render_markdown(report: dict) -> str:
         )
     ap("")
 
+    clock_warnings = session.get("clock_warnings") or []
+    if clock_warnings:
+        ap("## Clock-sanity warnings")
+        ap("")
+        ap("These robots have physically implausible timestamps and were excluded from "
+           "the fleet session window (their telemetry integrity is intact; only the "
+           "wall-clock frame is suspect):")
+        ap("")
+        for w in clock_warnings:
+            ap(f"- {w}")
+        ap("")
+
     quarantined = [r for r in report["per_robot"] if r["status"] != "VERIFIED"]
     if quarantined:
         ap("## Quarantined telemetry (excluded from every total above)")

@@ -25,6 +25,39 @@ def _num(value) -> float | None:
     return value if isinstance(value, (int, float)) else None
 
 
+def _clock_warning(robot_id: str, start_utc: str, end_utc: str) -> str | None:
+    """Flag physically implausible timestamps.
+
+    Underground/GPS-denied robots often log a monotonic (steady_clock) time
+    rather than wall clock, producing log_times near the epoch or far in the
+    future. Aggregating such a robot into a fleet session window silently
+    corrupts the window and any cross-robot correlation. We warn rather than
+    quarantine: the telemetry integrity is intact, only its wall-clock frame
+    is suspect.
+    """
+    now = datetime.now(UTC)
+    for label, iso in (("start", start_utc), ("end", end_utc)):
+        if not isinstance(iso, str) or iso == NOT_PRESENT:
+            continue
+        try:
+            ts = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        except ValueError:
+            return f"{robot_id}: {label} timestamp '{iso}' is unparseable"
+        year = ts.year
+        if year < 2015:
+            return (
+                f"{robot_id}: {label} timestamp {iso} predates 2015 "
+                "(likely a monotonic/steady_clock recorder, not wall clock); "
+                "excluded from the fleet session window judgement"
+            )
+        if ts > now.replace(year=now.year + 1):
+            return (
+                f"{robot_id}: {label} timestamp {iso} is more than a year in the future "
+                "(clock not disciplined); treat this robot's time frame as suspect"
+            )
+    return None
+
+
 def build_fleet_report(
     fleet_dir: Path,
     results: list[RobotVerification],
@@ -46,6 +79,7 @@ def build_fleet_report(
     distance_robot_count = 0
     total_hard_decel = 0
     incidents: list[dict] = []
+    clock_warnings: list[str] = []
 
     for r in verified:
         rep = r.report
@@ -54,10 +88,14 @@ def build_fleet_report(
         motion = rep["motion"]
         autonomy = rep["autonomy"]
 
-        if isinstance(session.get("start_utc"), str) and session["start_utc"] != NOT_PRESENT:
-            starts.append(session["start_utc"])
-        if isinstance(session.get("end_utc"), str) and session["end_utc"] != NOT_PRESENT:
-            ends.append(session["end_utc"])
+        warning = _clock_warning(r.robot_id, session.get("start_utc"), session.get("end_utc"))
+        if warning:
+            clock_warnings.append(warning)
+        else:
+            if isinstance(session.get("start_utc"), str) and session["start_utc"] != NOT_PRESENT:
+                starts.append(session["start_utc"])
+            if isinstance(session.get("end_utc"), str) and session["end_utc"] != NOT_PRESENT:
+                ends.append(session["end_utc"])
         total_time_s += session.get("duration_s", 0.0)
         total_messages += session.get("message_count", 0)
         total_gaps += continuity.get("gap_count", 0)
@@ -172,6 +210,7 @@ def build_fleet_report(
             "combined_robot_time_s": round(total_time_s, 6),
             "combined_robot_hours": round(robot_hours, 4),
             "message_count_total": total_messages,
+            "clock_warnings": clock_warnings,
         },
         "exposure": {
             "distance_m_total": round(total_distance_m, 3),
