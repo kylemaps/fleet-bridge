@@ -35,9 +35,12 @@ def fleet(tmp_path_factory) -> Path:
 
     veriseal = _veriseal_cmd()
     assert veriseal, "veriseal CLI not found"
+    capture_key = keys_dir / "capture_key.pem"
+    subprocess.run(veriseal + ["keygen", "--out", str(capture_key)], check=True, capture_output=True)
     for robot in ("rover-a", "rover-b"):
         subprocess.run(
             veriseal + ["seal", str(fleet_dir / robot / "log.mcap"), "--no-anchor",
+                        "--key", str(capture_key),
                         "--out", str(fleet_dir / robot / "log.seal.json")],
             check=True, capture_output=True,
         )

@@ -13,8 +13,9 @@ numbers are counted in fleet exposure totals. An underwriter should never be
 rating on telemetry nobody can vouch for.
 
 veriseal is invoked as an external CLI (documented exit codes: 0 INTACT,
-1 TAMPERED, 2 error) rather than imported, on the family principle that each
-tool stands alone and speaks through its published interface.
+1 TAMPERED, 2 error, 3 INTACT but no signer key pinned) rather than imported,
+on the family principle that each tool stands alone and speaks through its
+published interface.
 """
 
 from __future__ import annotations
@@ -138,7 +139,9 @@ def verify_robot(robot_dir: Path, pubkey: Path | None = None) -> RobotVerificati
 
     # 2. Full veriseal verification (message-level Merkle check + signature).
     code, detail = _run_veriseal_verify(rv.mcap_path, rv.seal_path, pubkey)
-    if code == 0:
+    # Without --pubkey, veriseal exits 3 for an intact log (older versions exit 0).
+    # The report already records that the capture key was not pinned.
+    if code == 0 or (code == 3 and pubkey is None):
         rv.veriseal_verdict = "INTACT"
     elif code == -1:
         rv.veriseal_verdict = "UNAVAILABLE"
